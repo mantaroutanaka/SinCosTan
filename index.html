@@ -1,10 +1,486 @@
 <!doctype html>
 <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <title>数学アプリ</title>
-    </head>
-    <body>
-        <h1>数学アプリ</h1>
-    </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="単位円と三角関数 sin・cos・tan の関係を直感的に学べるインタラクティブ教材">
+<title>単位円と三角関数｜インタラクティブ教材</title>
+<style>
+*{box-sizing:border-box}
+:root{--sin:#e53935;--cos:#1e88e5;--tan:#43a047;--bg1:#f5f7fc;--bg2:#e9eef7;--ink:#263238;--muted:#78909c;--line:#dbe4f0}
+html{color-scheme:light}
+body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","MS PGothic",sans-serif;color:var(--ink);background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 100%);min-height:100vh}
+.wrap{max-width:1160px;margin:0 auto;padding:18px 14px}
+.site-header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.site-header h1{font-size:26px;margin:0;display:flex;align-items:center;gap:8px}
+.site-header .sub{color:var(--muted);font-size:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(30,41,59,.10);padding:14px 16px}
+main.grid{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-bottom:18px}
+.circle-card{flex:1 1 600px;display:flex;flex-direction:column;align-items:center}
+.circle-card svg{width:100%;max-width:560px;height:auto;cursor:grab;touch-action:none}
+.circle-card svg:active{cursor:grabbing}
+.caption{color:var(--muted);font-size:12.5px;margin-top:4px}
+.info-card{flex:1 1 360px}
+.info-card h2{font-size:16px;margin:0 0 10px;color:#4b5a6e}
+.angle-big{font-size:27px;font-weight:700;text-align:center;background:#f0f4fb;border:1px solid #d9e2f0;border-radius:12px;padding:8px 0;margin:0 0 12px}
+.angle-big .rad{font-size:15px;color:var(--muted)}
+.value-rows{margin-top:2px}
+.row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px dashed var(--line);font-size:16.5px}
+.row .dot{width:12px;height:12px;border-radius:50%;flex:none}
+.row .lbl{min-width:74px}
+.row .val{font-variant-numeric:tabular-nums;font-weight:700;min-width:96px;text-align:right}
+.row .unit{color:var(--muted);font-size:12.5px}
+.qtitle{font-size:13.5px;color:#4b5a6e;font-weight:700;margin:12px 0 4px}
+table.quad{width:100%;border-collapse:collapse;font-size:13px}
+.quad th,.quad td{border:1px solid #cfd9e8;padding:5px 8px;text-align:center}
+.quad th{background:#eef2fa;color:#4b5a6e}
+.quad tr.active td{background:#fff7e6;font-weight:700}
+.note{font-size:13px;line-height:1.8;color:#43536a;background:#f0f4fb;border:1px solid #d9e2f0;border-radius:10px;padding:10px 12px;margin-top:14px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.ctrl-slider{display:flex;align-items:center;gap:8px}
+input[type=range]{width:230px;accent-color:#3949ab}
+.slider-val{font-weight:700;min-width:62px;text-align:right;font-variant-numeric:tabular-nums}
+button.primary{padding:8px 16px;border:none;border-radius:10px;background:#3949ab;color:#fff;font-size:14.5px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(57,73,171,.35)}
+button.primary:hover{background:#303f8f}
+.speed-label{font-size:13.5px;color:#4b5a6e;display:flex;align-items:center;gap:5px}
+.speed-label select{padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.presets{display:flex;align-items:center;gap:6px;font-size:13.5px;color:#4b5a6e}
+.presets button{min-width:46px;padding:5px 0;border:1px solid #c8d3e6;border-radius:8px;background:#fff;color:#4b5a6e;cursor:pointer;font-size:12.5px}
+.presets button:hover{background:#eaf0fb}
+.chk{display:flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer}
+.chk input{accent-color:#3949ab}
+.graphs{display:flex;flex-direction:column;gap:10px}
+.graphs[hidden]{display:none}
+.graphs-note{font-size:13px;color:var(--muted)}
+.gcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 8px}
+.gcard svg{width:100%;height:auto}
+.site-footer{font-size:12.5px;color:var(--muted);text-align:center;margin-top:10px}
+#dynamic{pointer-events:none}
+#dynamic text{user-select:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="site-header">
+  <h1>📐 単位円と三角関数</h1>
+  <p class="sub">点Pをドラッグ／スライダー／▶再生で動かして、sin・cos・tan の意味を体験しよう</p>
+</header>
+<main class="grid">
+  <section class="card circle-card">
+    <svg id="unitCircle" viewBox="0 0 500 500" role="img" aria-label="単位円上の点Pとsin・cos・tanの図">
+      <circle cx="250" cy="250" r="210" fill="none" stroke="#cfd8ea" stroke-width="1.4"/>
+      <circle cx="250" cy="250" r="105" fill="none" stroke="#dde5f2" stroke-width="1" stroke-dasharray="4 8"/>
+      <line x1="20" y1="250" x2="480" y2="250" stroke="#455a64" stroke-width="2"/>
+      <line x1="250" y1="20" x2="250" y2="480" stroke="#455a64" stroke-width="2"/>
+      <g stroke="#90a0b4" stroke-width="1.2">
+        <line x1="40" y1="244" x2="40" y2="256"/>
+        <line x1="145" y1="246" x2="145" y2="254"/>
+        <line x1="355" y1="246" x2="355" y2="254"/>
+        <line x1="460" y1="244" x2="460" y2="256"/>
+        <line x1="244" y1="40" x2="256" y2="40"/>
+        <line x1="246" y1="145" x2="254" y2="145"/>
+        <line x1="246" y1="355" x2="254" y2="355"/>
+        <line x1="244" y1="460" x2="256" y2="460"/>
+      </g>
+      <g font-size="14" fill="#5c6b7a" text-anchor="middle">
+        <text x="460" y="276">1</text>
+        <text x="40" y="276">-1</text>
+        <text x="228" y="46">1</text>
+        <text x="228" y="472">-1</text>
+        <text x="352" y="272">0.5</text>
+        <text x="148" y="272">-0.5</text>
+        <text x="222" y="149">0.5</text>
+        <text x="222" y="364">-0.5</text>
+      </g>
+      <text x="478" y="266" font-size="14" fill="#455a64" text-anchor="end" font-weight="700">x</text>
+      <text x="262" y="24" font-size="14" fill="#455a64" font-weight="700">y</text>
+      <line x1="460" y1="18" x2="460" y2="482" stroke="#3e7d44" stroke-width="1.6" stroke-dasharray="6 5"/>
+      <text x="460" y="15" font-size="12" fill="#3e7d44" text-anchor="middle">x=1</text>
+      <line x1="452" y1="40" x2="468" y2="40" stroke="#3e7d44" stroke-width="1.2"/>
+      <line x1="452" y1="460" x2="468" y2="460" stroke="#3e7d44" stroke-width="1.2"/>
+      <text x="472" y="45" font-size="11" fill="#3e7d44">1</text>
+      <text x="472" y="464" font-size="11" fill="#3e7d44">-1</text>
+      <g id="dynamic"></g>
+    </svg>
+    <p class="caption">※ 単位円の半径 = 1。赤 = sin（縦）、青 = cos（横）、緑 = tan（傾き）。円の内側もドラッグできます</p>
+  </section>
+  <aside class="card info-card">
+    <h2>角度と三角関数の値</h2>
+    <div class="angle-big"><span id="degVal">45°</span> <span id="radVal" class="rad">= π/4</span></div>
+    <div class="value-rows">
+      <div class="row"><span class="dot" style="background:var(--sin)"></span><span class="lbl">sin θ</span><span class="val" id="sinVal">0.707</span></div>
+      <div class="row"><span class="dot" style="background:var(--cos)"></span><span class="lbl">cos θ</span><span class="val" id="cosVal">0.707</span></div>
+      <div class="row"><span class="dot" style="background:var(--tan)"></span><span class="lbl">tan θ</span><span class="val" id="tanVal">1</span></div>
+      <div class="row"><span class="dot" style="background:#ffb74d"></span><span class="lbl">P の座標</span><span class="val" id="pxVal">0.707</span><span class="unit">, <span id="pyVal">0.707</span></span></div>
+      <div class="row"><span class="dot" style="background:#9aa7ba"></span><span class="lbl">P の位置</span><span class="val" id="quadVal">第1象限</span></div>
+    </div>
+    <p class="qtitle">象限と符号の対応</p>
+    <table class="quad" id="quadTable">
+      <tr><th>象限</th><th>範囲</th><th>sin</th><th>cos</th><th>tan</th></tr>
+      <tr class="qrow q1"><td>第1</td><td>0〜90°</td><td>＋</td><td>＋</td><td>＋</td></tr>
+      <tr class="qrow q2"><td>第2</td><td>90〜180°</td><td>＋</td><td>−</td><td>−</td></tr>
+      <tr class="qrow q3"><td>第3</td><td>180〜270°</td><td>−</td><td>−</td><td>＋</td></tr>
+      <tr class="qrow q4"><td>第4</td><td>270〜360°</td><td>−</td><td>＋</td><td>−</td></tr>
+    </table>
+    <p class="note">単位円（半径 = 1）だから、斜辺が 1 の直角三角形を考えればOK。<b>sin θ = 縦の長さ（点Pの y 座標）</b>、<b>cos θ = 横の長さ（点Pの x 座標）</b>、<b>tan θ = 傾き（直線 x=1 と交わる点の y 座標）</b>。＋と−の符号が象限によって変わる様子も見てみよう。</p>
+  </aside>
+</main>
+<section class="card controls">
+  <div class="ctrl-slider">
+    <span>角度</span>
+    <input type="range" id="theta" min="0" max="360" step="0.5" value="45" aria-label="角度">
+    <output id="sliderDeg" class="slider-val">45°</output>
+  </div>
+  <button id="playBtn" class="primary" type="button">▶ 再生</button>
+  <label class="speed-label">速度
+    <select id="speed">
+      <option value="0.5">ゆっくり</option>
+      <option value="1" selected>ふつう</option>
+      <option value="2">はやい</option>
+    </select>
+  </label>
+  <div class="presets">代表角
+    <button type="button" data-a="0">0°</button>
+    <button type="button" data-a="30">30°</button>
+    <button type="button" data-a="45">45°</button>
+    <button type="button" data-a="60">60°</button>
+    <button type="button" data-a="90">90°</button>
+    <button type="button" data-a="180">180°</button>
+    <button type="button" data-a="270">270°</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="showGraph" checked> sin/cos のグラフを表示</label>
+</section>
+<section class="graphs" id="graphsWrap">
+  <p class="graphs-note">単位円を 1 周すると、点Pの縦の動き（y = sin θ）と横の動き（x = cos θ）が波になります。</p>
+  <div class="gcard">
+    <svg id="sinChart" viewBox="0 0 720 176" role="img" aria-label="y = sinθ のグラフ"></svg>
+  </div>
+  <div class="gcard">
+    <svg id="cosChart" viewBox="0 0 720 176" role="img" aria-label="y = cosθ のグラフ"></svg>
+  </div>
+</section>
+<footer class="site-footer">半径 1 の円（単位円）を使って学習する教材です。ブラウザだけで動作します（オフラインOK）。</footer>
+</div>
+<script>
+'use strict';
+/* ==================== 定数と状態 ==================== */
+const NS = 'http://www.w3.org/2000/svg';
+const CX = 250, CY = 250, R = 210;
+const SIN = '#e53935', COS = '#1e88e5', TAN = '#43a047';
+
+const elSVG = document.getElementById('unitCircle');
+const elDyn = document.getElementById('dynamic');
+const slider = document.getElementById('theta');
+const playBtn = document.getElementById('playBtn');
+const speedSel = document.getElementById('speed');
+const sliderDeg = document.getElementById('sliderDeg');
+
+const state = { deg: 45, playing: false, tPrev: performance.now() };
+
+/* ==================== 値の整形ヘルパー ==================== */
+const fix = v => Math.abs(v) < 1e-9 ? 0 : v;
+const fmt3 = v => {
+  v = fix(v);
+  const s = String(Math.round(v * 1000) / 1000);
+  return s === '-0' ? '0' : s;
+};
+const fmt1 = v => {
+  const n = Math.round(fix(v) * 10) / 10;
+  return Object.is(n, -0) ? '0' : String(n);
+};
+const gcd = (a, b) => {
+  a = Math.abs(a); b = Math.abs(b);
+  while (b) { const t = a % b; a = b; b = t; }
+  return a;
+};
+/* 度数を「π/4」のような分数表記へ */
+function radFrac(deg) {
+  const num = Math.round(fix(deg) * 2);
+  if (num === 0) return '0';
+  const g = gcd(num, 360);
+  const n = num / g, d = 360 / g;
+  return (n === 1 ? 'π' : n + 'π') + (d === 1 ? '' : '/' + d);
+}
+/* 象限判定: 1〜4。軸上のときは 0 */
+function quadrantNum(deg) {
+  const d = ((Math.round(fix(deg) * 2) / 2) % 360 + 360) % 360;
+  if (d === 0 || d === 90 || d === 180 || d === 270) return 0;
+  if (d < 90) return 1;
+  if (d < 180) return 2;
+  if (d < 270) return 3;
+  return 4;
+}
+function quadrantLabel(deg) {
+  const d = ((Math.round(fix(deg) * 2) / 2) % 360 + 360) % 360;
+  if (d === 0) return 'x軸の正の向き（0°）';
+  if (d === 90) return 'y軸の正の向き（90°）';
+  if (d === 180) return 'x軸の負の向き（180°）';
+  if (d === 270) return 'y軸の負の向き（270°）';
+  return '第' + quadrantNum(d) + '象限';
+}
+
+/* ==================== 動的SVG要素の生成 ==================== */
+const L = {};
+function mk(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  elDyn.appendChild(e);
+  return e;
+}
+function mkText(content, x, y, anchor, fill, size) {
+  const t = mk('text', {
+    'x': x, 'y': y, 'text-anchor': anchor, 'fill': fill,
+    'font-size': size || 15, 'font-weight': 'bold',
+    'stroke': 'rgba(255,255,255,.85)', 'stroke-width': 3, 'paint-order': 'stroke'
+  });
+  t.textContent = content;
+  return t;
+}
+L.tri = mk('polygon', { 'fill': 'rgba(144,178,255,.28)', 'stroke': 'none' });
+L.arc = mk('path', { 'fill': 'none', 'stroke': '#ffb74d', 'stroke-width': 2.6, 'stroke-linecap': 'round' });
+L.rad = mk('line', { 'stroke': '#54606e', 'stroke-width': 2.6, 'stroke-linecap': 'round' });
+L.cos = mk('line', { 'stroke': COS, 'stroke-width': 3, 'stroke-linecap': 'round' });
+L.sin = mk('line', { 'stroke': SIN, 'stroke-width': 3, 'stroke-linecap': 'round' });
+L.tan = mk('line', { 'stroke': TAN, 'stroke-width': 2.4, 'stroke-dasharray': '9 6', 'stroke-linecap': 'round' });
+L.ra = mk('path', { 'fill': 'none', 'stroke': '#8fa1b5', 'stroke-width': 1.6, 'stroke-linejoin': 'round' });
+L.P = mk('circle', { 'r': 8.5, 'fill': '#263238', 'stroke': '#fff', 'stroke-width': 2.6 });
+L.Qx = mk('circle', { 'r': 5, 'fill': '#fff', 'stroke': SIN, 'stroke-width': 2.2 });
+L.Qy = mk('circle', { 'r': 5, 'fill': '#fff', 'stroke': COS, 'stroke-width': 2.2 });
+L.T = mk('circle', { 'r': 5.5, 'fill': TAN, 'stroke': '#fff', 'stroke-width': 1.6 });
+L.tCrd = mkText('P', CX + 10, CY - 10, 'start', '#263238', 13);
+L.tRad = mkText('1', CX + R * 0.52, CY + 4, 'middle', '#37474f', 13);
+L.tSin = mkText('sin θ', 0, 0, 'middle', SIN, 14);
+L.tCos = mkText('cos θ', 0, 0, 'middle', COS, 14);
+L.tTan = mkText('tan θ', 0, 0, 'end', TAN, 13);
+L.tTheta = mkText('θ', 0, 0, 'middle', '#b26a00', 15);
+L.sgSin = mkText('＋', 0, 0, 'middle', SIN, 14);
+L.sgCos = mkText('＋', 0, 0, 'middle', COS, 14);
+/* ==================== 表示の更新 ==================== */
+function update() {
+  const deg = state.deg;
+  const t = deg * Math.PI / 180;
+  const c = Math.cos(t), s = Math.sin(t);
+  const ta = Math.abs(c) < 1e-10 ? (s >= 0 ? 1e7 : -1e7) : s / c;
+  const px = CX + R * c, py = CY - R * s;   /* 点P */
+  const qx = px;                            /* x軸上の足 */
+  const tx = CX + R, ty = CY - R * ta;      /* 直線x=1との交点 */
+  const r2 = n => Math.round(n * 10) / 10;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  /* 三角形・角の弧・各線分 */
+  L.tri.setAttribute('points', CX + ',' + CY + ' ' + r2(qx) + ',' + CY + ' ' + r2(px) + ',' + r2(py));
+  L.arc.setAttribute('d', t < 1e-6 ? '' :
+    'M ' + (CX + 46) + ' ' + CY + ' A 46 46 0 ' + (t > Math.PI ? 1 : 0) + ' 1 ' + r2(CX + 46 * c) + ' ' + r2(CY - 46 * s));
+  L.rad.setAttribute('x1', CX); L.rad.setAttribute('y1', CY);
+  L.rad.setAttribute('x2', r2(px)); L.rad.setAttribute('y2', r2(py));
+  L.cos.setAttribute('x1', CX); L.cos.setAttribute('y1', r2(py));
+  L.cos.setAttribute('x2', r2(px)); L.cos.setAttribute('y2', r2(py));
+  L.sin.setAttribute('x1', r2(qx)); L.sin.setAttribute('y1', CY);
+  L.sin.setAttribute('x2', r2(qx)); L.sin.setAttribute('y2', r2(py));
+  if (Math.abs(c) < 1e-6) {
+    /* θが90°/270°ぴったりのとき、延長線そのものがy軸になる */
+    L.tan.setAttribute('x1', CX); L.tan.setAttribute('y1', 20);
+    L.tan.setAttribute('x2', CX); L.tan.setAttribute('y2', 480);
+  } else {
+    L.tan.setAttribute('x1', r2(CX - R)); L.tan.setAttribute('y1', r2(CY + R * ta));
+    L.tan.setAttribute('x2', r2(tx)); L.tan.setAttribute('y2', r2(ty));
+  }
+
+  /* 点 */
+  L.P.setAttribute('cx', r2(px)); L.P.setAttribute('cy', r2(py));
+  L.Qx.setAttribute('cx', r2(qx)); L.Qx.setAttribute('cy', CY);
+  L.Qy.setAttribute('cx', CX); L.Qy.setAttribute('cy', r2(py));
+  L.T.setAttribute('cx', r2(tx)); L.T.setAttribute('cy', r2(ty));
+
+  /* 直角マーク（Qx の内角） */
+  const dirx = c >= 0 ? -1 : 1, diry = s >= 0 ? -1 : 1, sz = 13;
+  L.ra.setAttribute('d', 'M ' + r2(qx) + ' ' + CY + ' L ' + r2(qx + sz * dirx) + ' ' + CY +
+    ' L ' + r2(qx + sz * dirx) + ' ' + r2(CY + sz * diry) + ' L ' + r2(qx) + ' ' + r2(CY + sz * diry) + ' Z');
+
+  /* ラベル */
+  L.tCrd.setAttribute('x', r2(px + 10)); L.tCrd.setAttribute('y', r2(py - 10));
+  L.tRad.setAttribute('x', r2(CX + R * 0.52 * c)); L.tRad.setAttribute('y', r2(CY - R * 0.52 * s + 4));
+  L.tSin.setAttribute('x', r2(qx + 16 * dirx)); L.tSin.setAttribute('y', r2((CY + py) / 2 + 5));
+  L.tCos.setAttribute('x', r2((CX + px) / 2)); L.tCos.setAttribute('y', r2(py + (s >= 0 ? 22 : -20)));
+  L.tTan.setAttribute('x', r2(tx - 10)); L.tTan.setAttribute('y', r2(clamp(ty, 26, 478) + 5));
+  L.tTheta.setAttribute('x', r2(CX + 66 * Math.cos(t / 2)));
+  L.tTheta.setAttribute('y', r2(CY - 66 * Math.sin(t / 2) + 6));
+  L.tTheta.setAttribute('opacity', t < 1e-6 ? 0 : 1);
+  L.sgSin.setAttribute('x', r2(qx + 11 * dirx)); L.sgSin.setAttribute('y', r2(CY + (s >= 0 ? 26 : -22)));
+  L.sgCos.setAttribute('x', r2(CX + (c >= 0 ? 24 : -24))); L.sgCos.setAttribute('y', r2(py + 6));
+  L.sgSin.textContent = s >= 0 ? '＋' : '−';
+  L.sgCos.textContent = c >= 0 ? '＋' : '−';
+  L.tTan.textContent = 'tan θ = ' + (Math.abs(ta) > 99 ? '±∞' : fmt3(ta));
+
+  /* 情報パネル */
+  document.getElementById('degVal').textContent = fmt1(deg) + '°';
+  document.getElementById('radVal').textContent = '= ' + radFrac(deg) + '（' + fmt3(t) + '）';
+  document.getElementById('sinVal').textContent = fmt3(s);
+  document.getElementById('cosVal').textContent = fmt3(c);
+  document.getElementById('tanVal').textContent = Math.abs(ta) > 99 ? '±∞' : fmt3(ta);
+  document.getElementById('pxVal').textContent = fmt3(c);
+  document.getElementById('pyVal').textContent = fmt3(s);
+  document.getElementById('quadVal').textContent = quadrantLabel(deg);
+
+  /* 象限テーブルのハイライト */
+  document.querySelectorAll('#quadTable tr.qrow').forEach(r => r.classList.remove('active'));
+  const qn = quadrantNum(deg);
+  if (qn > 0) {
+    const row = document.querySelector('#quadTable tr.q' + qn);
+    if (row) row.classList.add('active');
+  }
+
+  /* グラフのカーソル */
+  if (charts.sinChart) updateChart('sinChart');
+  if (charts.cosChart) updateChart('cosChart');
+}
+/* ==================== sin / cos のグラフ ==================== */
+const charts = {};
+const GW = 720, GH = 176, GL = 44, GR = 16, GT = 20, GB = 30;
+
+function buildChart(svgId, color, fn) {
+  const svg = document.getElementById(svgId);
+  const w = GW - GL - GR, h = GH - GT - GB;
+  const X = a => GL + (a / 360) * w;
+  const Y = v => GT + (1 - (v + 1.2) / 2.4) * h;
+  svg.innerHTML = '';
+  const g = document.createElementNS(NS, 'g');
+  svg.appendChild(g);
+  const ln = (x1, y1, x2, y2, stroke, sw, dash) => {
+    const e = document.createElementNS(NS, 'line');
+    e.setAttribute('x1', x1); e.setAttribute('y1', y1);
+    e.setAttribute('x2', x2); e.setAttribute('y2', y2);
+    e.setAttribute('stroke', stroke); e.setAttribute('stroke-width', sw || 1);
+    if (dash) e.setAttribute('stroke-dasharray', dash);
+    g.appendChild(e);
+  };
+  ln(X(0), GT, X(0), GH - GB, '#c3ccda', 1);
+  ln(X(360), GT, X(360), GH - GB, '#c3ccda', 1);
+  ln(GL, Y(0), GW - GR, Y(0), '#9aa7ba', 1.4);
+  for (let a = 0; a <= 360; a += 30) {
+    const xx = X(a);
+    ln(xx, GH - GB - 4, xx, GH - GB + 3, '#d5dbe8', 1);
+    if (a % 90 === 0) {
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', xx); t.setAttribute('y', GH - GB + 15);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '11');
+      t.setAttribute('fill', '#607080'); t.textContent = a + '°';
+      g.appendChild(t);
+    }
+  }
+  for (const v of [-1, 0, 1]) {
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', GL - 8); t.setAttribute('y', Y(v) + 4);
+    t.setAttribute('text-anchor', 'end'); t.setAttribute('font-size', '11');
+    t.setAttribute('fill', '#607080'); t.textContent = String(v);
+    g.appendChild(t);
+    ln(GL, Y(v), GL + 4, Y(v), '#c7d0de', 1);
+  }
+  const pts = [];
+  for (let a = 0; a <= 360; a += 0.5) {
+    pts.push(X(a).toFixed(1) + ',' + Y(fn(a * Math.PI / 180)).toFixed(1));
+  }
+  const poly = document.createElementNS(NS, 'polyline');
+  poly.setAttribute('points', pts.join(' '));
+  poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', color);
+  poly.setAttribute('stroke-width', 2.3); poly.setAttribute('stroke-linejoin', 'round');
+  g.appendChild(poly);
+  const cur = document.createElementNS(NS, 'line');
+  cur.setAttribute('y1', GT); cur.setAttribute('y2', GH - GB);
+  cur.setAttribute('stroke', '#ffb74d'); cur.setAttribute('stroke-width', 1.3);
+  cur.setAttribute('stroke-dasharray', '3 3');
+  g.appendChild(cur);
+  const dot = document.createElementNS(NS, 'circle');
+  dot.setAttribute('r', 5.5); dot.setAttribute('fill', color);
+  dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 1.6);
+  g.appendChild(dot);
+  charts[svgId] = { X, Y, fn, cur, dot };
+}
+
+function updateChart(svgId) {
+  const ch = charts[svgId];
+  const rad = state.deg * Math.PI / 180;
+  const x = ch.X(state.deg), y = ch.Y(ch.fn(rad));
+  ch.cur.setAttribute('x1', x); ch.cur.setAttribute('x2', x);
+  ch.dot.setAttribute('cx', x); ch.dot.setAttribute('cy', y);
+}
+
+/* ==================== 操作 ==================== */
+function stopPlay() {
+  if (state.playing) {
+    state.playing = false;
+    playBtn.textContent = '▶ 再生';
+  }
+}
+function setAng(deg) {
+  deg = ((deg % 360) + 360) % 360;
+  state.deg = deg;
+  slider.value = Math.round(deg * 2) / 2;
+  sliderDeg.textContent = fmt1(deg) + '°';
+  update();
+}
+
+slider.addEventListener('input', () => {
+  stopPlay();
+  setAng(parseFloat(slider.value));
+});
+document.querySelectorAll('.presets button').forEach(b =>
+  b.addEventListener('click', () => {
+    stopPlay();
+    setAng(parseFloat(b.dataset.a));
+  }));
+
+playBtn.addEventListener('click', () => {
+  state.playing = !state.playing;
+  playBtn.textContent = state.playing ? '⏸ 停止' : '▶ 再生';
+  playBtn.setAttribute('aria-pressed', String(state.playing));
+  if (state.playing) state.tPrev = performance.now();
+});
+
+/* 単位円上のドラッグ操作 */
+let dragging = false;
+function dragUpdate(e) {
+  const r = elSVG.getBoundingClientRect();
+  const x = (e.clientX - r.left) * 500 / r.width;
+  const y = (e.clientY - r.top) * 500 / r.height;
+  let deg = Math.atan2(CY - y, x - CX) * 180 / Math.PI;
+  if (deg < 0) deg += 360;
+  setAng(deg);
+}
+elSVG.addEventListener('pointerdown', e => {
+  dragging = true;
+  stopPlay();
+  try { elSVG.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+  dragUpdate(e);
+});
+elSVG.addEventListener('pointermove', e => { if (dragging) dragUpdate(e); });
+elSVG.addEventListener('pointerup', () => { dragging = false; });
+elSVG.addEventListener('pointercancel', () => { dragging = false; });
+
+const showGraph = document.getElementById('showGraph');
+const graphsWrap = document.getElementById('graphsWrap');
+showGraph.addEventListener('change', () => { graphsWrap.hidden = !showGraph.checked; });
+
+/* ==================== アニメーションと初期化 ==================== */
+function loop(now) {
+  const dt = Math.min((now - state.tPrev) / 1000, 0.1);
+  state.tPrev = now;
+  if (state.playing) {
+    const spd = parseFloat(speedSel.value);
+    let d = state.deg + 40 * spd * dt;
+    d = ((d % 360) + 360) % 360;
+    state.deg = d;
+    slider.value = Math.round(d * 2) / 2;
+    sliderDeg.textContent = fmt1(d) + '°';
+    update();
+  }
+  requestAnimationFrame(loop);
+}
+
+buildChart('sinChart', SIN, Math.sin);
+buildChart('cosChart', COS, Math.cos);
+setAng(45);
+requestAnimationFrame(loop);
+</script>
+</body>
 </html>
