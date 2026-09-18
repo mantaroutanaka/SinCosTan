@@ -270,7 +270,7 @@ function update() {
   /* 三角形・角の弧・各線分 */
   L.tri.setAttribute('points', CX + ',' + CY + ' ' + r2(qx) + ',' + CY + ' ' + r2(px) + ',' + r2(py));
   L.arc.setAttribute('d', t < 1e-6 ? '' :
-    'M ' + (CX + 46) + ' ' + CY + ' A 46 46 0 ' + (t > Math.PI ? 1 : 0) + ' 1 ' + r2(CX + 46 * c) + ' ' + r2(CY - 46 * s));
+    'M ' + (CX + 46) + ' ' + CY + ' A 46 46 0 ' + (t > Math.PI ? 1 : 0) + ' 0 ' + r2(CX + 46 * c) + ' ' + r2(CY - 46 * s));
   L.rad.setAttribute('x1', CX); L.rad.setAttribute('y1', CY);
   L.rad.setAttribute('x2', r2(px)); L.rad.setAttribute('y2', r2(py));
   L.cos.setAttribute('x1', CX); L.cos.setAttribute('y1', r2(py));
