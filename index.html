@@ -52,10 +52,15 @@ button.primary:hover{background:#303f8f}
 .step-ctrl button:hover{background:#eaf0fb}
 .chk{display:flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer}
 .chk input{accent-color:#3949ab}
+.chart-ctrl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13.5px;color:#4b5a6e}
+.chart-ctrl .sw{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+.axis-label{display:flex;align-items:center;gap:5px;font-size:13.5px;color:#4b5a6e}
+.axis-label select{padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .graphs{display:flex;flex-direction:column;gap:10px}
 .graphs[hidden]{display:none}
 .graphs-note{font-size:13px;color:var(--muted)}
 .gcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 8px}
+.gcard[hidden]{display:none}
 .gcard svg{width:100%;height:auto}
 .site-footer{font-size:12.5px;color:var(--muted);text-align:center;margin-top:10px}
 #dynamic{pointer-events:none}
@@ -151,18 +156,28 @@ button.primary:hover{background:#303f8f}
     <button type="button" id="nextStep" aria-label="次の離散角へ">▶</button>
     <label class="chk"><input type="checkbox" id="snapStep"> 離散値にスナップ</label>
   </div>
-  <label class="chk"><input type="checkbox" id="showGraph" checked> グラフを表示（sin / cos / tan）</label>
+  <div class="chart-ctrl">グラフ
+    <label class="chk"><input type="checkbox" id="showSin" checked><span class="sw" style="background:var(--sin)"></span>sin</label>
+    <label class="chk"><input type="checkbox" id="showCos" checked><span class="sw" style="background:var(--cos)"></span>cos</label>
+    <label class="chk"><input type="checkbox" id="showTan" checked><span class="sw" style="background:var(--tan)"></span>tan</label>
+    <label class="axis-label">横軸
+      <select id="axisUnit" aria-label="グラフ横軸の表示単位">
+        <option value="deg" selected>度数法（°）</option>
+        <option value="rad">弧度法（π）</option>
+      </select>
+    </label>
+  </div>
 </section>
 <section class="graphs" id="graphsWrap">
-  <p class="graphs-note">単位円を 1 周すると、点Pの縦の動き（y = sin θ）と横の動き（x = cos θ）が波になり、傾き（tan θ）は 90°・270° で発散します。</p>
-  <div class="gcard">
-    <svg id="sinChart" viewBox="0 0 720 176" role="img" aria-label="y = sinθ のグラフ"></svg>
+  <p class="graphs-note">単位円を 1 周すると、点Pの縦の動き（y = sin θ）と横の動き（x = cos θ）が波になり、傾き（tan θ）は 90°・270° で発散します。軸の目盛りは sin・cos が ±1/2・±1/√2・±√3/2・±1、tan は ±2・±4 です。</p>
+  <div class="gcard" id="sinCard">
+    <svg id="sinChart" viewBox="0 0 720 300" role="img" aria-label="y = sinθ のグラフ"></svg>
   </div>
-  <div class="gcard">
-    <svg id="cosChart" viewBox="0 0 720 176" role="img" aria-label="y = cosθ のグラフ"></svg>
+  <div class="gcard" id="cosCard">
+    <svg id="cosChart" viewBox="0 0 720 300" role="img" aria-label="y = cosθ のグラフ"></svg>
   </div>
-  <div class="gcard">
-    <svg id="tanChart" viewBox="0 0 720 208" role="img" aria-label="y = tanθ のグラフ"></svg>
+  <div class="gcard" id="tanCard">
+    <svg id="tanChart" viewBox="0 0 720 300" role="img" aria-label="y = tanθ のグラフ"></svg>
   </div>
 </section>
 <footer class="site-footer">半径 1 の円（単位円）を使って学習する教材です。ブラウザだけで動作します（オフラインOK）。</footer>
@@ -380,20 +395,34 @@ function update() {
 }
 /* ==================== sin / cos / tan のグラフ ==================== */
 const charts = {};
-const GW = 720, GH = 176, GL = 44, GR = 16, GT = 20, GB = 30;
+const GW = 720, GH = 300, GL = 58, GR = 16, GT = 20, GB = 30;
+const TAN_RANGE = 5, WAVE_RANGE = 1.2;
 
-function buildChart(svgId, color, fn, opt) {
-  opt = opt || {};
-  const isTan = !!opt.tan;
-  const svg = document.getElementById(svgId);
+/* 縦軸の目盛り（横軸に平行な直線を引く値とラベル） */
+const R3H = Math.sqrt(3) / 2;   /* √3/2 ≒ 0.866 */
+const R2H = Math.SQRT1_2;       /* 1/√2 ≒ 0.707 */
+const WAVE_GRID = [
+  { v: 1, label: '1', strong: true },
+  { v: R3H, label: '√3/2' },
+  { v: R2H, label: '1/√2' },
+  { v: 0.5, label: '1/2' },
+  { v: 0, label: '0' },
+  { v: -0.5, label: '-1/2' },
+  { v: -R2H, label: '-1/√2' },
+  { v: -R3H, label: '-√3/2' },
+  { v: -1, label: '-1', strong: true }
+];
+const TAN_GRID = [4, 2, 0, -2, -4];
+
+function buildChart(spec) {
+  const isTan = !!spec.tan;
+  const svg = document.getElementById(spec.id);
   const VB = svg.viewBox && svg.viewBox.baseVal;
   const VW = (VB && VB.width) || GW, VH = (VB && VB.height) || GH;
   const w = VW - GL - GR, h = VH - GT - GB;
+  const span = isTan ? TAN_RANGE : WAVE_RANGE;
   const X = a => GL + (a / 360) * w;
-  const Y = isTan
-    ? v => GT + (1 - (v + 3) / 6) * h
-    : v => GT + (1 - (v + 1.2) / 2.4) * h;
-  const TAN_LIM = 3;
+  const Y = v => GT + (1 - (v + span) / (2 * span)) * h;
   const tanVal = rad => {
     const c = Math.cos(rad);
     if (Math.abs(c) < 1e-10) return null;
@@ -410,33 +439,41 @@ function buildChart(svgId, color, fn, opt) {
     if (dash) e.setAttribute('stroke-dasharray', dash);
     g.appendChild(e);
   };
+  const txt = (x, y, s, anchor) => {
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', y);
+    t.setAttribute('text-anchor', anchor || 'middle');
+    t.setAttribute('font-size', '11'); t.setAttribute('fill', '#607080');
+    t.textContent = s;
+    g.appendChild(t);
+  };
   ln(X(0), GT, X(0), VH - GB, '#c3ccda', 1);
   ln(X(360), GT, X(360), VH - GB, '#c3ccda', 1);
-  ln(GL, Y(0), VW - GR, Y(0), '#9aa7ba', 1.4);
+  if (isTan) ln(GL, Y(0), VW - GR, Y(0), '#9aa7ba', 1.4);
   for (let a = 0; a <= 360; a += 30) {
     const xx = X(a);
     ln(xx, VH - GB - 4, xx, VH - GB + 3, '#d5dbe8', 1);
-    if (a % 90 === 0) {
-      const t = document.createElementNS(NS, 'text');
-      t.setAttribute('x', xx); t.setAttribute('y', VH - GB + 15);
-      t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '11');
-      t.setAttribute('fill', '#607080'); t.textContent = a + '°';
-      g.appendChild(t);
-    }
+    if (a % 90 === 0) txt(xx, VH - GB + 15, axisLabel(a), 'middle');
   }
   if (isTan) {
     /* 漸近線: 90°と270°に破線 */
     for (const a of [90, 270]) {
       ln(X(a), GT, X(a), VH - GB, '#9aa7ba', 1.1, '5 4');
     }
-  }
-  for (const v of (isTan ? [-2, -1, 0, 1, 2] : [-1, 0, 1])) {
-    const t = document.createElementNS(NS, 'text');
-    t.setAttribute('x', GL - 8); t.setAttribute('y', Y(v) + 4);
-    t.setAttribute('text-anchor', 'end'); t.setAttribute('font-size', '11');
-    t.setAttribute('fill', '#607080'); t.textContent = String(v);
-    g.appendChild(t);
-    ln(GL, Y(v), GL + 4, Y(v), '#c7d0de', 1);
+    /* 縦軸の目盛り（tan は目盛りのみ） */
+    for (const v of TAN_GRID) {
+      ln(GL, Y(v), GL + 4, Y(v), '#c7d0de', 1);
+      txt(GL - 8, Y(v) + 4, String(v), 'end');
+    }
+  } else {
+    /* 横軸に平行な直線: ±1 は実線、±1/2・±1/√2・±√3/2 は破線 */
+    for (const it of WAVE_GRID) {
+      const y = Y(it.v);
+      if (it.v === 0) ln(GL, y, VW - GR, y, '#9aa7ba', 1.4);
+      else if (it.strong) ln(GL, y, VW - GR, y, '#b3c2d6', 1.3);
+      else ln(GL, y, VW - GR, y, '#dbe4f0', 1, '4 4');
+      txt(GL - 8, y + 4, it.label, 'end');
+    }
   }
   if (isTan) {
     /* 発散するので polyline を1本にせず、不連続点で分割して描く */
@@ -445,7 +482,7 @@ function buildChart(svgId, color, fn, opt) {
       if (seg.length > 1) {
         const p = document.createElementNS(NS, 'polyline');
         p.setAttribute('points', seg.join(' '));
-        p.setAttribute('fill', 'none'); p.setAttribute('stroke', color);
+        p.setAttribute('fill', 'none'); p.setAttribute('stroke', spec.color);
         p.setAttribute('stroke-width', 2.3); p.setAttribute('stroke-linejoin', 'round');
         g.appendChild(p);
       }
@@ -453,18 +490,18 @@ function buildChart(svgId, color, fn, opt) {
     };
     for (let a = 0; a <= 360; a += 0.5) {
       const v = tanVal(a * Math.PI / 180);
-      if (v === null || Math.abs(v) > TAN_LIM) { flush(); continue; }
+      if (v === null || Math.abs(v) > span) { flush(); continue; }
       seg.push(X(a).toFixed(1) + ',' + Y(v).toFixed(1));
     }
     flush();
   } else {
     const pts = [];
     for (let a = 0; a <= 360; a += 0.5) {
-      pts.push(X(a).toFixed(1) + ',' + Y(fn(a * Math.PI / 180)).toFixed(1));
+      pts.push(X(a).toFixed(1) + ',' + Y(spec.fn(a * Math.PI / 180)).toFixed(1));
     }
     const poly = document.createElementNS(NS, 'polyline');
     poly.setAttribute('points', pts.join(' '));
-    poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', color);
+    poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', spec.color);
     poly.setAttribute('stroke-width', 2.3); poly.setAttribute('stroke-linejoin', 'round');
     g.appendChild(poly);
   }
@@ -474,17 +511,17 @@ function buildChart(svgId, color, fn, opt) {
   cur.setAttribute('stroke-dasharray', '3 3');
   g.appendChild(cur);
   const dot = document.createElementNS(NS, 'circle');
-  dot.setAttribute('r', 5.5); dot.setAttribute('fill', color);
+  dot.setAttribute('r', 5.5); dot.setAttribute('fill', spec.color);
   dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 1.6);
   g.appendChild(dot);
-  charts[svgId] = { X, Y, fn: isTan ? tanVal : fn, cur, dot, isTan };
+  charts[spec.id] = { X, Y, fn: isTan ? tanVal : spec.fn, cur, dot, isTan };
 }
 
 function updateChart(svgId) {
   const ch = charts[svgId];
   const rad = state.deg * Math.PI / 180;
   const v = ch.fn(rad);
-  const LIM = ch.isTan ? 3 : 1.2;
+  const LIM = ch.isTan ? TAN_RANGE : WAVE_RANGE;
   const vc = v === null ? null : Math.max(-LIM, Math.min(LIM, v));
   const x = ch.X(state.deg), y = vc === null ? null : ch.Y(vc);
   ch.cur.setAttribute('x1', x); ch.cur.setAttribute('x2', x);
@@ -496,6 +533,40 @@ function updateChart(svgId) {
     ch.dot.setAttribute('cy', y);
   }
 }
+
+/* 3つのグラフの定義（色・カードid・チェックボックスid） */
+const CHART_SPECS = [
+  { id: 'sinChart', color: SIN, fn: Math.sin, card: 'sinCard', chk: 'showSin' },
+  { id: 'cosChart', color: COS, fn: Math.cos, card: 'cosCard', chk: 'showCos' },
+  { id: 'tanChart', color: TAN, tan: true, card: 'tanCard', chk: 'showTan' }
+];
+const graphsWrap = document.getElementById('graphsWrap');
+const axisSel = document.getElementById('axisUnit');
+const graphChk = {};
+for (const s of CHART_SPECS) {
+  graphChk[s.id] = document.getElementById(s.chk);
+  graphChk[s.id].addEventListener('change', syncGraphs);
+}
+
+/* 横軸ラベル: 度数法（0°, 90°, …）/ 弧度法（0, π/2, …） */
+function axisLabel(a) {
+  return axisSel.value === 'rad' ? radFrac(a) : a + '°';
+}
+function rebuildCharts() {
+  for (const k in charts) delete charts[k];
+  for (const s of CHART_SPECS) buildChart(s);
+}
+/* グラフごとの表示切替（1つも表示しないときはセクションごと隠す） */
+function syncGraphs() {
+  let any = false;
+  for (const s of CHART_SPECS) {
+    const on = graphChk[s.id].checked;
+    document.getElementById(s.card).hidden = !on;
+    if (on) any = true;
+  }
+  graphsWrap.hidden = !any;
+}
+axisSel.addEventListener('change', () => { rebuildCharts(); update(); });
 
 /* ==================== 操作 ==================== */
 function stopPlay() {
@@ -601,10 +672,6 @@ elSVG.addEventListener('pointermove', e => { if (dragging) dragUpdate(e); });
 elSVG.addEventListener('pointerup', () => { dragging = false; });
 elSVG.addEventListener('pointercancel', () => { dragging = false; });
 
-const showGraph = document.getElementById('showGraph');
-const graphsWrap = document.getElementById('graphsWrap');
-showGraph.addEventListener('change', () => { graphsWrap.hidden = !showGraph.checked; });
-
 /* ==================== アニメーションと初期化 ==================== */
 function loop(now) {
   const dt = Math.min((now - state.tPrev) / 1000, 0.1);
@@ -621,9 +688,8 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-buildChart('sinChart', SIN, Math.sin);
-buildChart('cosChart', COS, Math.cos);
-buildChart('tanChart', TAN, null, { tan: true });
+rebuildCharts();
+syncGraphs();
 setAng(45);
 requestAnimationFrame(loop);
 </script>
