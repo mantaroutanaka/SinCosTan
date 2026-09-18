@@ -29,6 +29,8 @@ main.grid{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-bot
 .row .dot{width:12px;height:12px;border-radius:50%;flex:none}
 .row .lbl{min-width:74px}
 .row .val{font-variant-numeric:tabular-nums;font-weight:700;min-width:96px;text-align:right}
+.row .exact{display:block;font-size:12.5px;color:#4b5a6e;font-weight:400;min-height:1.2em}
+.row .cell{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .row .unit{color:var(--muted);font-size:12.5px}
 .qtitle{font-size:13.5px;color:#4b5a6e;font-weight:700;margin:12px 0 4px}
 table.quad{width:100%;border-collapse:collapse;font-size:13px}
@@ -44,9 +46,10 @@ button.primary{padding:8px 16px;border:none;border-radius:10px;background:#3949a
 button.primary:hover{background:#303f8f}
 .speed-label{font-size:13.5px;color:#4b5a6e;display:flex;align-items:center;gap:5px}
 .speed-label select{padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:#fff}
-.presets{display:flex;align-items:center;gap:6px;font-size:13.5px;color:#4b5a6e}
-.presets button{min-width:46px;padding:5px 0;border:1px solid #c8d3e6;border-radius:8px;background:#fff;color:#4b5a6e;cursor:pointer;font-size:12.5px}
-.presets button:hover{background:#eaf0fb}
+.step-ctrl{display:flex;align-items:center;gap:6px;font-size:13.5px;color:#4b5a6e;flex-wrap:wrap}
+.step-ctrl select{padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.step-ctrl button{min-width:40px;padding:5px 10px;border:1px solid #c8d3e6;border-radius:8px;background:#fff;color:#3949ab;cursor:pointer;font-size:14px;font-weight:700}
+.step-ctrl button:hover{background:#eaf0fb}
 .chk{display:flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer}
 .chk input{accent-color:#3949ab}
 .graphs{display:flex;flex-direction:column;gap:10px}
@@ -108,9 +111,9 @@ button.primary:hover{background:#303f8f}
     <h2>角度と三角関数の値</h2>
     <div class="angle-big"><span id="degVal">45°</span> <span id="radVal" class="rad">= π/4</span></div>
     <div class="value-rows">
-      <div class="row"><span class="dot" style="background:var(--sin)"></span><span class="lbl">sin θ</span><span class="val" id="sinVal">0.707</span></div>
-      <div class="row"><span class="dot" style="background:var(--cos)"></span><span class="lbl">cos θ</span><span class="val" id="cosVal">0.707</span></div>
-      <div class="row"><span class="dot" style="background:var(--tan)"></span><span class="lbl">tan θ</span><span class="val" id="tanVal">1</span></div>
+      <div class="row"><span class="dot" style="background:var(--sin)"></span><span class="lbl">sin θ</span><span class="cell"><span class="val" id="sinVal">0.707</span><span class="exact" id="sinExact"></span></span></div>
+      <div class="row"><span class="dot" style="background:var(--cos)"></span><span class="lbl">cos θ</span><span class="cell"><span class="val" id="cosVal">0.707</span><span class="exact" id="cosExact"></span></span></div>
+      <div class="row"><span class="dot" style="background:var(--tan)"></span><span class="lbl">tan θ</span><span class="cell"><span class="val" id="tanVal">1</span><span class="exact" id="tanExact"></span></span></div>
       <div class="row"><span class="dot" style="background:#ffb74d"></span><span class="lbl">P の座標</span><span class="val" id="pxVal">0.707</span><span class="unit">, <span id="pyVal">0.707</span></span></div>
       <div class="row"><span class="dot" style="background:#9aa7ba"></span><span class="lbl">P の位置</span><span class="val" id="quadVal">第1象限</span></div>
     </div>
@@ -139,14 +142,14 @@ button.primary:hover{background:#303f8f}
       <option value="2">はやい</option>
     </select>
   </label>
-  <div class="presets">代表角
-    <button type="button" data-a="0">0°</button>
-    <button type="button" data-a="30">30°</button>
-    <button type="button" data-a="45">45°</button>
-    <button type="button" data-a="60">60°</button>
-    <button type="button" data-a="90">90°</button>
-    <button type="button" data-a="180">180°</button>
-    <button type="button" data-a="270">270°</button>
+  <div class="step-ctrl">刻み
+    <select id="stepMode" aria-label="離散ステップの刻み">
+      <option value="30" selected>30°ごと（π/6）</option>
+      <option value="45">45°ごと（π/4）</option>
+    </select>
+    <button type="button" id="prevStep" aria-label="前の離散角へ">◀</button>
+    <button type="button" id="nextStep" aria-label="次の離散角へ">▶</button>
+    <label class="chk"><input type="checkbox" id="snapStep"> 離散値にスナップ</label>
   </div>
   <label class="chk"><input type="checkbox" id="showGraph" checked> sin/cos のグラフを表示</label>
 </section>
@@ -200,6 +203,37 @@ function radFrac(deg) {
   const g = gcd(num, 360);
   const n = num / g, d = 360 / g;
   return (n === 1 ? 'π' : n + 'π') + (d === 1 ? '' : '/' + d);
+}
+/* 厳密値: 15°刻み(30°系・45°系を含む)の sin/cos/tan を √ 記号で表す */
+const EXACT15 = {
+  0:   { sin: '0', cos: '1', tan: '0' },
+  15:  { sin: '(√6−√2)/4', cos: '(√6+√2)/4', tan: '2−√3' },
+  30:  { sin: '1/2', cos: '√3/2', tan: '1/√3' },
+  45:  { sin: '1/√2', cos: '1/√2', tan: '1' },
+  60:  { sin: '√3/2', cos: '1/2', tan: '√3' },
+  75:  { sin: '(√6+√2)/4', cos: '(√6−√2)/4', tan: '2+√3' },
+  90:  { sin: '1', cos: '0', tan: '定義されない' },
+  105: { sin: '(√6+√2)/4', cos: '−(√6−√2)/4', tan: '−(2+√3)' },
+  120: { sin: '√3/2', cos: '−1/2', tan: '−√3' },
+  135: { sin: '1/√2', cos: '−1/√2', tan: '−1' },
+  150: { sin: '1/2', cos: '−√3/2', tan: '−1/√3' },
+  165: { sin: '(√6−√2)/4', cos: '−(√6+√2)/4', tan: '−(2−√3)' },
+  180: { sin: '0', cos: '−1', tan: '0' },
+  195: { sin: '−(√6−√2)/4', cos: '−(√6+√2)/4', tan: '2−√3' },
+  210: { sin: '−1/2', cos: '−√3/2', tan: '1/√3' },
+  225: { sin: '−1/√2', cos: '−1/√2', tan: '1' },
+  240: { sin: '−√3/2', cos: '−1/2', tan: '√3' },
+  255: { sin: '−(√6+√2)/4', cos: '−(√6−√2)/4', tan: '2+√3' },
+  270: { sin: '−1', cos: '0', tan: '定義されない' },
+  285: { sin: '−(√6+√2)/4', cos: '(√6−√2)/4', tan: '−(2+√3)' },
+  300: { sin: '−√3/2', cos: '1/2', tan: '−√3' },
+  315: { sin: '−1/√2', cos: '1/√2', tan: '−1' },
+  330: { sin: '−1/2', cos: '√3/2', tan: '−1/√3' },
+  345: { sin: '−(√6−√2)/4', cos: '(√6+√2)/4', tan: '−(2−√3)' }
+};
+function exactFor(deg) {
+  const d = ((Math.round(fix(deg) * 2) / 2) % 360 + 360) % 360;
+  return EXACT15[d] || null;
 }
 /* 象限判定: 1〜4。軸上のときは 0 */
 function quadrantNum(deg) {
@@ -322,6 +356,12 @@ function update() {
   document.getElementById('pyVal').textContent = fmt3(s);
   document.getElementById('quadVal').textContent = quadrantLabel(deg);
 
+  /* 厳密値(15°刻みのときだけ表示、それ以外は空欄) */
+  const ex = exactFor(deg);
+  document.getElementById('sinExact').textContent = ex ? '= ' + ex.sin : '';
+  document.getElementById('cosExact').textContent = ex ? '= ' + ex.cos : '';
+  document.getElementById('tanExact').textContent = ex ? (ex.tan === '定義されない' ? '定義されない' : '= ' + ex.tan) : '';
+
   /* 象限テーブルのハイライト */
   document.querySelectorAll('#quadTable tr.qrow').forEach(r => r.classList.remove('active'));
   const qn = quadrantNum(deg);
@@ -420,15 +460,67 @@ function setAng(deg) {
   update();
 }
 
+/* 離散ステップ: 30°(π/6) / 45°(π/4) ごとのトグル移動 */
+const stepSel = document.getElementById('stepMode');
+const snapChk = document.getElementById('snapStep');
+const prevBtn = document.getElementById('prevStep');
+const nextBtn = document.getElementById('nextStep');
 slider.addEventListener('input', () => {
   stopPlay();
-  setAng(parseFloat(slider.value));
+  let v = parseFloat(slider.value);
+  if (snapChk.checked) v = snapToStep(v);
+  setAng(v);
 });
-document.querySelectorAll('.presets button').forEach(b =>
-  b.addEventListener('click', () => {
-    stopPlay();
-    setAng(parseFloat(b.dataset.a));
-  }));
+function stepList() {
+  const st = parseFloat(stepSel.value);
+  const list = [];
+  for (let a = 0; a < 360; a += st) list.push(Math.round(a * 10) / 10);
+  return list;
+}
+function snapToStep(deg) {
+  const list = stepList();
+  let best = list[0], bd = 1e9;
+  for (const a of list) {
+    let d = Math.abs(((deg - a + 540) % 360) - 180);
+    d = Math.min(d, 360 - d);
+    const circ = Math.min(Math.abs(deg - a), 360 - Math.abs(deg - a));
+    if (circ < bd) { bd = circ; best = a; }
+  }
+  return best;
+}
+function stepMove(dir) {
+  stopPlay();
+  const list = stepList();
+  const cur = ((Math.round(state.deg * 10) / 10) % 360 + 360) % 360;
+  let idx = -1, bd = 1e9;
+  for (let i = 0; i < list.length; i++) {
+    const circ = Math.min(Math.abs(cur - list[i]), 360 - Math.abs(cur - list[i]));
+    if (circ < bd) { bd = circ; idx = i; }
+  }
+  const EPS = 1e-6;
+  if (bd < EPS) {
+    idx = (idx + dir + list.length) % list.length;
+  } else if (dir > 0) {
+    let nxt = -1;
+    for (let i = 0; i < list.length; i++) {
+      const fwd = ((list[i] - cur) % 360 + 360) % 360;
+      if (fwd > EPS && (nxt < 0 || fwd < ((list[nxt] - cur) % 360 + 360) % 360)) nxt = i;
+    }
+    idx = nxt < 0 ? 0 : nxt;
+  } else {
+    let prv = -1;
+    for (let i = 0; i < list.length; i++) {
+      const bwd = ((cur - list[i]) % 360 + 360) % 360;
+      if (bwd > EPS && (prv < 0 || bwd < ((cur - list[prv]) % 360 + 360) % 360)) prv = i;
+    }
+    idx = prv < 0 ? list.length - 1 : prv;
+  }
+  setAng(list[idx]);
+}
+prevBtn.addEventListener('click', () => stepMove(-1));
+nextBtn.addEventListener('click', () => stepMove(1));
+stepSel.addEventListener('change', () => { if (snapChk.checked) setAng(snapToStep(state.deg)); });
+snapChk.addEventListener('change', () => { if (snapChk.checked) { stopPlay(); setAng(snapToStep(state.deg)); } });
 
 playBtn.addEventListener('click', () => {
   state.playing = !state.playing;
