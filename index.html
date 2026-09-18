@@ -151,15 +151,18 @@ button.primary:hover{background:#303f8f}
     <button type="button" id="nextStep" aria-label="次の離散角へ">▶</button>
     <label class="chk"><input type="checkbox" id="snapStep"> 離散値にスナップ</label>
   </div>
-  <label class="chk"><input type="checkbox" id="showGraph" checked> sin/cos のグラフを表示</label>
+  <label class="chk"><input type="checkbox" id="showGraph" checked> グラフを表示（sin / cos / tan）</label>
 </section>
 <section class="graphs" id="graphsWrap">
-  <p class="graphs-note">単位円を 1 周すると、点Pの縦の動き（y = sin θ）と横の動き（x = cos θ）が波になります。</p>
+  <p class="graphs-note">単位円を 1 周すると、点Pの縦の動き（y = sin θ）と横の動き（x = cos θ）が波になり、傾き（tan θ）は 90°・270° で発散します。</p>
   <div class="gcard">
     <svg id="sinChart" viewBox="0 0 720 176" role="img" aria-label="y = sinθ のグラフ"></svg>
   </div>
   <div class="gcard">
     <svg id="cosChart" viewBox="0 0 720 176" role="img" aria-label="y = cosθ のグラフ"></svg>
+  </div>
+  <div class="gcard">
+    <svg id="tanChart" viewBox="0 0 720 208" role="img" aria-label="y = tanθ のグラフ"></svg>
   </div>
 </section>
 <footer class="site-footer">半径 1 の円（単位円）を使って学習する教材です。ブラウザだけで動作します（オフラインOK）。</footer>
@@ -373,17 +376,30 @@ function update() {
   /* グラフのカーソル */
   if (charts.sinChart) updateChart('sinChart');
   if (charts.cosChart) updateChart('cosChart');
+  if (charts.tanChart) updateChart('tanChart');
 }
-/* ==================== sin / cos のグラフ ==================== */
+/* ==================== sin / cos / tan のグラフ ==================== */
 const charts = {};
 const GW = 720, GH = 176, GL = 44, GR = 16, GT = 20, GB = 30;
 
-function buildChart(svgId, color, fn) {
+function buildChart(svgId, color, fn, opt) {
+  opt = opt || {};
+  const isTan = !!opt.tan;
   const svg = document.getElementById(svgId);
-  const w = GW - GL - GR, h = GH - GT - GB;
+  const VB = svg.viewBox && svg.viewBox.baseVal;
+  const VW = (VB && VB.width) || GW, VH = (VB && VB.height) || GH;
+  const w = VW - GL - GR, h = VH - GT - GB;
   const X = a => GL + (a / 360) * w;
-  const Y = v => GT + (1 - (v + 1.2) / 2.4) * h;
-  svg.innerHTML = '';
+  const Y = isTan
+    ? v => GT + (1 - (v + 3) / 6) * h
+    : v => GT + (1 - (v + 1.2) / 2.4) * h;
+  const TAN_LIM = 3;
+  const tanVal = rad => {
+    const c = Math.cos(rad);
+    if (Math.abs(c) < 1e-10) return null;
+    return Math.sin(rad) / c;
+  };
+  svg.textContent = '';
   const g = document.createElementNS(NS, 'g');
   svg.appendChild(g);
   const ln = (x1, y1, x2, y2, stroke, sw, dash) => {
@@ -394,21 +410,27 @@ function buildChart(svgId, color, fn) {
     if (dash) e.setAttribute('stroke-dasharray', dash);
     g.appendChild(e);
   };
-  ln(X(0), GT, X(0), GH - GB, '#c3ccda', 1);
-  ln(X(360), GT, X(360), GH - GB, '#c3ccda', 1);
-  ln(GL, Y(0), GW - GR, Y(0), '#9aa7ba', 1.4);
+  ln(X(0), GT, X(0), VH - GB, '#c3ccda', 1);
+  ln(X(360), GT, X(360), VH - GB, '#c3ccda', 1);
+  ln(GL, Y(0), VW - GR, Y(0), '#9aa7ba', 1.4);
   for (let a = 0; a <= 360; a += 30) {
     const xx = X(a);
-    ln(xx, GH - GB - 4, xx, GH - GB + 3, '#d5dbe8', 1);
+    ln(xx, VH - GB - 4, xx, VH - GB + 3, '#d5dbe8', 1);
     if (a % 90 === 0) {
       const t = document.createElementNS(NS, 'text');
-      t.setAttribute('x', xx); t.setAttribute('y', GH - GB + 15);
+      t.setAttribute('x', xx); t.setAttribute('y', VH - GB + 15);
       t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '11');
       t.setAttribute('fill', '#607080'); t.textContent = a + '°';
       g.appendChild(t);
     }
   }
-  for (const v of [-1, 0, 1]) {
+  if (isTan) {
+    /* 漸近線: 90°と270°に破線 */
+    for (const a of [90, 270]) {
+      ln(X(a), GT, X(a), VH - GB, '#9aa7ba', 1.1, '5 4');
+    }
+  }
+  for (const v of (isTan ? [-2, -1, 0, 1, 2] : [-1, 0, 1])) {
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('x', GL - 8); t.setAttribute('y', Y(v) + 4);
     t.setAttribute('text-anchor', 'end'); t.setAttribute('font-size', '11');
@@ -416,17 +438,38 @@ function buildChart(svgId, color, fn) {
     g.appendChild(t);
     ln(GL, Y(v), GL + 4, Y(v), '#c7d0de', 1);
   }
-  const pts = [];
-  for (let a = 0; a <= 360; a += 0.5) {
-    pts.push(X(a).toFixed(1) + ',' + Y(fn(a * Math.PI / 180)).toFixed(1));
+  if (isTan) {
+    /* 発散するので polyline を1本にせず、不連続点で分割して描く */
+    let seg = [];
+    const flush = () => {
+      if (seg.length > 1) {
+        const p = document.createElementNS(NS, 'polyline');
+        p.setAttribute('points', seg.join(' '));
+        p.setAttribute('fill', 'none'); p.setAttribute('stroke', color);
+        p.setAttribute('stroke-width', 2.3); p.setAttribute('stroke-linejoin', 'round');
+        g.appendChild(p);
+      }
+      seg = [];
+    };
+    for (let a = 0; a <= 360; a += 0.5) {
+      const v = tanVal(a * Math.PI / 180);
+      if (v === null || Math.abs(v) > TAN_LIM) { flush(); continue; }
+      seg.push(X(a).toFixed(1) + ',' + Y(v).toFixed(1));
+    }
+    flush();
+  } else {
+    const pts = [];
+    for (let a = 0; a <= 360; a += 0.5) {
+      pts.push(X(a).toFixed(1) + ',' + Y(fn(a * Math.PI / 180)).toFixed(1));
+    }
+    const poly = document.createElementNS(NS, 'polyline');
+    poly.setAttribute('points', pts.join(' '));
+    poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', color);
+    poly.setAttribute('stroke-width', 2.3); poly.setAttribute('stroke-linejoin', 'round');
+    g.appendChild(poly);
   }
-  const poly = document.createElementNS(NS, 'polyline');
-  poly.setAttribute('points', pts.join(' '));
-  poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', color);
-  poly.setAttribute('stroke-width', 2.3); poly.setAttribute('stroke-linejoin', 'round');
-  g.appendChild(poly);
   const cur = document.createElementNS(NS, 'line');
-  cur.setAttribute('y1', GT); cur.setAttribute('y2', GH - GB);
+  cur.setAttribute('y1', GT); cur.setAttribute('y2', VH - GB);
   cur.setAttribute('stroke', '#ffb74d'); cur.setAttribute('stroke-width', 1.3);
   cur.setAttribute('stroke-dasharray', '3 3');
   g.appendChild(cur);
@@ -434,15 +477,24 @@ function buildChart(svgId, color, fn) {
   dot.setAttribute('r', 5.5); dot.setAttribute('fill', color);
   dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 1.6);
   g.appendChild(dot);
-  charts[svgId] = { X, Y, fn, cur, dot };
+  charts[svgId] = { X, Y, fn: isTan ? tanVal : fn, cur, dot, isTan };
 }
 
 function updateChart(svgId) {
   const ch = charts[svgId];
   const rad = state.deg * Math.PI / 180;
-  const x = ch.X(state.deg), y = ch.Y(ch.fn(rad));
+  const v = ch.fn(rad);
+  const LIM = ch.isTan ? 3 : 1.2;
+  const vc = v === null ? null : Math.max(-LIM, Math.min(LIM, v));
+  const x = ch.X(state.deg), y = vc === null ? null : ch.Y(vc);
   ch.cur.setAttribute('x1', x); ch.cur.setAttribute('x2', x);
-  ch.dot.setAttribute('cx', x); ch.dot.setAttribute('cy', y);
+  ch.dot.setAttribute('cx', x);
+  if (y === null) {
+    ch.dot.setAttribute('visibility', 'hidden');
+  } else {
+    ch.dot.removeAttribute('visibility');
+    ch.dot.setAttribute('cy', y);
+  }
 }
 
 /* ==================== 操作 ==================== */
@@ -571,6 +623,7 @@ function loop(now) {
 
 buildChart('sinChart', SIN, Math.sin);
 buildChart('cosChart', COS, Math.cos);
+buildChart('tanChart', TAN, null, { tan: true });
 setAng(45);
 requestAnimationFrame(loop);
 </script>
