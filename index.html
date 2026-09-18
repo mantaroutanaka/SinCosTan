@@ -150,6 +150,7 @@ button.primary:hover{background:#303f8f}
   <div class="step-ctrl">刻み
     <select id="stepMode" aria-label="離散ステップの刻み">
       <option value="30" selected>30°ごと（π/6）</option>
+      <option value="15">15°ごと（π/12）</option>
       <option value="45">45°ごと（π/4）</option>
     </select>
     <button type="button" id="prevStep" aria-label="前の離散角へ">◀</button>
@@ -583,7 +584,7 @@ function setAng(deg) {
   update();
 }
 
-/* 離散ステップ: 30°(π/6) / 45°(π/4) ごとのトグル移動 */
+/* 離散ステップ: 15°(π/12) / 30°(π/6) / 45°(π/4) ごとのトグル移動 */
 const stepSel = document.getElementById('stepMode');
 const snapChk = document.getElementById('snapStep');
 const prevBtn = document.getElementById('prevStep');
